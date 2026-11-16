@@ -29,24 +29,37 @@ Target: NUCLEO-F446RE (STM32F446RE), STM32CubeIDE 2.2.0 / STM32CubeMX 6.18.1, FW
 All other pins are left unconfigured (reset state: floating input), so anything still wired to them on the breadboard is simply not driven.
 
 ## Console keys
+Open a serial terminal on the ST-LINK virtual COM port at 115200 baud, 8N1, no flow control. Use PuTTY, Tera Term or `screen`: the terminal must send each key as it's pressed, and send the arrow keys as escape codes. The STM32CubeIDE console doesn't, so the arrows won't work there.
+
 | Key | Action |
 |:---:|---|
 | `1`–`6` | Select that thruster (every output goes back to 1500 µs first) |
-| `+` / `=` | +1 µs |
-| `-` / `_` | −1 µs |
-| `]` | +10 µs |
-| `[` | −10 µs |
+| → (right arrow) | +1 µs on the selected thruster |
+| ← (left arrow) | −1 µs on the selected thruster |
 | space | Selected thruster back to 1500 µs |
 | `0` | All thrusters to 1500 µs, none selected |
 | `?` / `h` | Help |
 
-Limits: pulse is clamped to 1350–1650 µs (`CAL_PULSE_MIN_US` / `CAL_PULSE_MAX_US` in `motor_cal.h`). No key for 2 minutes → everything back to neutral (`CAL_IDLE_TIMEOUT_MS`).
+The arrow keys are the only way to change the pulse, 1 µs per press. Holding one down repeats at the keyboard's repeat rate. Every other key (including ↑ / ↓, Enter and the old `+ - [ ]` keys) is ignored.
+
+After each key the console prints the current state, e.g. `M3  1527 us  (+27)`, or `all neutral (1500 us). Press 1..6.` when no thruster is selected. Pressing an arrow with no thruster selected prints `select a thruster first (1..6)`.
+
+The timers count in 1 µs steps (TIM1/TIM8: prescaler 180−1 at 180 MHz), so the value shown is the pulse width written to the timer.
+
+### Safety
+- All six outputs are set to 1500 µs **before** PWM starts at boot, so the ESCs arm normally.
+- The pulse is clamped to 1350–1650 µs (`CAL_PULSE_MIN_US` / `CAL_PULSE_MAX_US` in `motor_cal.h`).
+- No key for 120 s → every output back to 1500 µs and `idle timeout -> all neutral` is printed (`CAL_IDLE_TIMEOUT_MS`).
+- If the main loop hangs for ~0.5 s, the watchdog resets the chip. The PWM pins stop driving, then the board reboots to neutral.
+
+### How the arrow keys are read
+A terminal sends an arrow key as three bytes: `ESC [ C` (right) or `ESC [ D` (left), or `ESC O C` / `ESC O D` in "application cursor" mode. `parse_arrow()` in `motor_cal.c` decodes both forms. `get_key()` polls USART2 for one byte per main-loop pass (no interrupts, never blocks).
 
 ## Files
 | File | |
 |---|---|
 | `Core/Src/main.c` | Clock, TIM1/TIM8/USART2/IWDG init, main loop |
-| `Core/Motors/motor_cal.c/.h` | The keyboard console |
+| `Core/Motors/motor_cal.c/.h` | The keyboard console: `motor_cal_init()` (neutral + PWM start + help), `motor_cal_service()` (called every main-loop pass), `get_key()`, `parse_arrow()` |
 | `Core/Motors/motors.h` | Motor → timer/channel mapping only (keep it the same as the main project) |
 
 Do not flash this onto the ROV for normal use: it ignores the Pi completely.
