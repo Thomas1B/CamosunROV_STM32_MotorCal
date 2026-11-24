@@ -11,6 +11,17 @@
  * The values found here go into MOTORn_REVERSE_ONSET_PULSE /
  * MOTORn_FORWARD_ONSET_PULSE in the main CamosunROV_STM32 project's motors.h.
  * Nothing in this project needs to change once they're found.
+ *
+ * What to record, per thruster and per direction: the FIRST pulse width
+ * (to 1 us) at which the motor starts turning steadily. Enter it as-is, no
+ * offset. The main firmware's throttleToPulse() sends exactly the onset pulse
+ * at +/-1 % throttle and scales +/-1..100 % onto onset..MOTOR_MAX_PULSE /
+ * MOTOR_MIN_PULSE, so the smallest joystick command will just turn the motor.
+ * 0 % always sends 1500 us (stop).
+ *
+ * The onset must lie between the main project's limits and neutral:
+ * MOTOR_MIN_PULSE < REVERSE_ONSET < 1500 < FORWARD_ONSET < MOTOR_MAX_PULSE.
+ * The 1350..1650 us clamp below keeps every value found here inside that.
  */
 
 #ifndef MOTORS_MOTOR_CAL_H_

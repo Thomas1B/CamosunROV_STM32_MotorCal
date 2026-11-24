@@ -46,6 +46,21 @@ After each key the console prints the current state, e.g. `M3  1527 us  (+27)`, 
 
 The timers count in 1 µs steps (TIM1/TIM8: prescaler 180−1 at 180 MHz), so the value shown is the pulse width written to the timer.
 
+### What to record
+For each thruster, step **up** from 1500 µs with → until the motor first turns steadily: that's `MOTORn_FORWARD_ONSET_PULSE`. Press space, then step **down** with ← for `MOTORn_REVERSE_ONSET_PULSE`. Enter the values exactly as shown, with no offset.
+
+The main firmware's `throttleToPulse()` sends exactly the onset pulse at ±1 % throttle, and scales ±1…100 % onto onset…`MOTOR_MAX_PULSE` / `MOTOR_MIN_PULSE`. So the smallest joystick command just turns the motor, and 0 % always sends 1500 µs (stop).
+
+| Command (main firmware) | Pulse sent |
+|---|---|
+| −100 % | `MOTOR_MIN_PULSE` |
+| −1 % | `MOTORn_REVERSE_ONSET_PULSE` (value found here) |
+| 0 % | 1500 µs (stop) |
+| +1 % | `MOTORn_FORWARD_ONSET_PULSE` (value found here) |
+| +100 % | `MOTOR_MAX_PULSE` |
+
+The onsets must sit between the main project's limits and neutral (`MOTOR_MIN_PULSE` < reverse onset < 1500 µs < forward onset < `MOTOR_MAX_PULSE`). The 1350–1650 µs console clamp keeps every value found here inside the main project's limits (currently 1200 / 1800 µs).
+
 ### Safety
 - All six outputs are set to 1500 µs **before** PWM starts at boot, so the ESCs arm normally.
 - The pulse is clamped to 1350–1650 µs (`CAL_PULSE_MIN_US` / `CAL_PULSE_MAX_US` in `motor_cal.h`).
